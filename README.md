@@ -4,51 +4,74 @@ A deep learning project that predicts the **real leverage ratio** of the leverag
 
 ## Overview
 
-This project builds a deep learning model to predict the actual leverage ratio of TQQQ based on features derived from QQQ, VIX, interest rates, and other market conditions. The predicted leverage is then used to simulate TQQQ returns and assess performance accuracy.
+This project builds a deep learning model to estimate the real-world leverage ratio of TQQQ using features derived from QQQ, VIX, interest rates, and various macroeconomic indicators. The predicted leverage is then used to simulate TQQQ returns and evaluate the accuracy of the model's performance.
 
 ## Prerequisites
 
 - Python 3.8+
-- CUDA 11.0+ (for GPU support)
 - 8GB+ RAM recommended
+- CUDA 11.0+ (optional, for GPU acceleration)
 
 ## Installation
 
-Clone this repository and install dependencies:
+1. Clone the repository:
+```bash
+git clone https://github.com/Lacri1/LeverageGenerator.git
+cd LeverageGenerator
+```
 
+2. Create and activate a virtual environment:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # For Linux/macOS
+.venv\Scripts\activate     # For Windows
+```
+
+3. Install the required packages:
 ```bash
 pip install -r requirements.txt
 ```
 
+
 ## Usage
 
-### Quick Start
+### Basic Example
 ```python
 import yfinance as yf
-from leverage_predictor import LeveragePredictor
+from main import LeverageGenerator
 
-# Load the model
-predictor = LeveragePredictor('leverage_model.keras')
+# Download historical data
+qqq = yf.download('QQQ', start='2020-01-01', end='2023-12-31')
+vix = yf.download('^VIX', start='2020-01-01', end='2023-12-31')
 
-# Get predictions
-leverage_ratio = predictor.predict(ticker='TQQQ')
+# Initialize the leverage generator
+generator = LeverageGenerator()
+
+# Load the trained model
+generator.load_model('leverage_model.keras')
+
+# Predict leverage ratios
+leverage_ratios = generator.predict(qqq, vix)
+
+# Run backtesting
+backtest_results = generator.backtest(qqq, leverage_ratios)
 ```
 
 ## Example Notebook
-See `examples/prediction_example.ipynb` for detailed usage examples.
+See `TQQQ_Leverage_Modeling.ipynb` for detailed usage examples.
 
 ## Model Description
 
 ### Architecture
 
 - **Input shape**: (batch_size, 10, 60+)
-- **Input features**: 60+ features including TQQQ price/volatility, VIX indicators, interest rates, macro signals.
-
+- ***Features**: Over 60 indicators including TQQQ price/volatility, VIX signals, interest rates, and macroeconomic metrics (e.g., VIX term structure, yield curve slope, market stress indices)
+  
 ### Network Structure
 
 - **Initial feature processing**: Dense(384) → LayerNormalization
 
-- **Attention Block 1**: MultiHeadAttention(16 heads, key_dim=64) + normalization & dropout
+- **Attention Block 1**: MultiHeadAttention (16 heads, key_dim=64) + normalization + dropout
 
 - **BiLSTM Block 1**: Bidirectional LSTM(384, return_sequences=True)
 
@@ -57,22 +80,22 @@ See `examples/prediction_example.ipynb` for detailed usage examples.
 - **LSTM Blocks 2–3**: BiLSTM(256) → LSTM(192)
 
 - **Dense Layers**:
-  - Dense(256, swish) → BatchNorm + Dropout
-  - Dense(128, swish) → BatchNorm
-  - Dense(1, sigmoid) → OutputScaling([2.990, 3.010])
+  - Dense(256, activation=swish) → BatchNorm + Dropout
+  - Dense(128, activation=swish) → BatchNorm
+  - Dense(1, activation=sigmoid) → OutputScaling([2.990, 3.010])
 
 ### Training Parameters
 
 - **Batch size**: 20
 - **Epochs**: 200 (10 warmup + 190 main)
-- **Optimizer**: Adam(beta1=0.91, beta2=0.9995, eps=1e-8)
+- **Optimizer**: Adam(β₁=0.91, β₂=0.9995, ε=1e-8)
 - **Learning rate**: 0.00008 with LR scheduler
 - **Gradient clipping**: 1.0
 - **Validation split**: 12%
 
 ### Custom Loss Function: tqqq_focused_loss
 
-Combines MSE with custom penalties:
+Combines multiple penalties:
 - Leverage range penalty (100.0)
 - Return tracking penalty (60.0)
 - Volatility penalty (40.0)
@@ -84,43 +107,9 @@ Combines MSE with custom penalties:
 - **EarlyStopping**: patience=50, min_delta=1e-6, restore_best_weights=True
 - **ReduceLROnPlateau**: patience=25, factor=0.5, min_lr=1e-5
 
-### Feature Engineering
+### Performance Evaluation
 
-- **TQQQ-based**:
-  - Price, volume, volatility
-  - Moving average ratios (5, 20 days)
-  - Momentum indicators (5, 10, 20 days)
-
-- **VIX-based**:
-  - VIX level and rate of change
-  - Term structure signals
-  - Moving averages and volatility
-
-- **Interest rate features**:
-  - 3-month and 10-year treasury rates
-  - Yield curve slope and momentum
-
-- **Market regime signals**:
-  - Stress indices, trend strength, macro regimes
-
-### Evaluation
-
-- **Leverage Accuracy**:
-  - Avg. actual leverage: 2.9986
-  - Avg. predicted leverage: 3.0027
-  - Correlation: -0.0388
-
-- **Return Tracking**:
-  - Correlation with actual: 0.9997
-  - Annualized tracking error: 1.62%
-
-- **Risk Metrics**:
-  - Daily volatility (actual): 62.78%
-  - Daily volatility (predicted): 63.52%
-  - Max drawdown (actual): 58.04%
-  - Max drawdown (predicted): 58.10%
-
-## Performance
+The following results show how well the model predicts the actual leverage of TQQQ and simulates TQQQ returns based on that prediction.
 
 ![Cumulative Returns](assets/cumulative_returns.png)
 *Cumulative Returns Comparison (Initial Value: 100)*
@@ -128,21 +117,39 @@ Combines MSE with custom penalties:
 - Orange: Predicted TQQQ
 - Green (dashed): 3x QQQ
 
-### Performance Metrics
-- **Returns Tracking**
-  - Returns Correlation: 0.9997
-  - Annualized Tracking Error: 1.62%
+**Return Tracking**:
+  - Correlation with actual TQQQ: 0.9997
+  - Annualized tracking error: 1.62%
+    
+  **Leverage Accuracy**:
+  - Average actual leverage: 2.9986
+  - Average predicted leverage: 3.0027
+  - Correlation with actual: -0.0388   
 
-- **Leverage Accuracy**
-  - Average Actual Leverage: 2.9986
-  - Average Predicted Leverage: 3.0027
-  - Leverage Range: [2.990, 3.010]
+  **Risk Metrics**:
+  - Daily volatility (actual / predicted): 62.78% / 63.52%
+  - Maximum drawdown (actual / predicted): 58.04% / 58.10%
 
-- **Risk Metrics**
-  - Daily Volatility (Actual/Predicted): 62.78% / 63.52%
-  - Maximum Drawdown (Actual/Predicted): 58.04% / 58.10%
+- **Market regime signals**:
+  - Stress indices, trend strength, macro regimes
+
+### Improving Backtesting Accuracy
+
+1. **Incorporate Market Regimes**:
+- Account for volatility cycles and interest rate environments
+- Reflect macroeconomic conditions
+
+2. Model Enhancements
+- Use longer time series data
+- Integrate additional market indicators
+- Improve volatility forecasting
+
+3. Validation Strategies
+- Test performance across different market conditions
+- Use rolling-window backtesting
+- Run stress-test scenarios
+
 ## Model Files
-
 - **Trained model**: `leverage_model.keras`
 - **Scaler**: `leverage_scaler.pkl`
 - **Feature names**: `feature_names.json`
