@@ -33,30 +33,6 @@ pip install -r requirements.txt
 ```
 
 
-## Usage
-
-### Basic Example
-```python
-import yfinance as yf
-from main import LeverageGenerator
-
-# Download historical data
-qqq = yf.download('QQQ', start='2020-01-01', end='2023-12-31')
-vix = yf.download('^VIX', start='2020-01-01', end='2023-12-31')
-
-# Initialize the leverage generator
-generator = LeverageGenerator()
-
-# Load the trained model
-generator.load_model('leverage_model.keras')
-
-# Predict leverage ratios
-leverage_ratios = generator.predict(qqq, vix)
-
-# Run backtesting
-backtest_results = generator.backtest(qqq, leverage_ratios)
-```
-
 ## Example Notebook
 See `TQQQ_Leverage_Modeling.ipynb` for detailed usage examples.
 
