@@ -27,11 +27,6 @@ source .venv/bin/activate  # For Linux/macOS
 .venv\Scripts\activate     # For Windows
 ```
 
-3. Install the required packages:
-```bash
-pip install -r requirements.txt
-```
-
 
 ## Example Notebook
 See `TQQQ_Leverage_Modeling.ipynb` for detailed usage examples.
